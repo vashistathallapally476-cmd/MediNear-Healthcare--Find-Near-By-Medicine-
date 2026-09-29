@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediNear — Real-Time Medicine Availability & Pharmacy Finder</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS Stylesheets -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+
+    <!-- SockJS & STOMP for Real-Time Live Stock Updates -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+
+    <!-- ── Top Navbar ───────────────────────────────────────────────────── -->
+    <header class="navbar">
+        <div class="container nav-content">
+            <a href="#" class="nav-brand">
+                <i class="fas fa-heartbeat"></i>
+                <span>MediNear</span>
+            </a>
+
+            <div class="nav-actions">
+                <!-- Navigation Switchers -->
+                <button class="btn btn-outline btn-sm hidden" id="nav-btn-customer">
+                    <i class="fas fa-search"></i> Find Medicines
+                </button>
+                <button class="btn btn-secondary btn-sm hidden" id="nav-btn-owner">
+                    <i class="fas fa-clinic-medical"></i> Owner Dashboard
+                </button>
+
+                <!-- Guest Actions -->
+                <div id="nav-guest" class="nav-actions">
+                    <button class="btn btn-outline btn-sm" id="btn-open-login">Sign In</button>
+                    <button class="btn btn-primary btn-sm" id="btn-open-register">Register</button>
+                </div>
+
+                <!-- Logged In User State -->
+                <div id="nav-user" class="nav-actions hidden">
+                    <div class="user-badge-box">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="user-display-name">User</span>
+                        <span class="role-badge" id="user-role-badge">CUSTOMER</span>
+                    </div>
+                    <button class="btn btn-outline btn-sm" id="btn-logout">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         CUSTOMER SECTION: Search, Prescription Scanner & Live Store Results
+         ══════════════════════════════════════════════════════════════════════ -->
+    <main id="customer-section">
+
+        <!-- ── Hero Search Bar ──────────────────────────────────────────── -->
+        <section class="hero-section">
+            <div class="container">
+                <h1 class="hero-title">Find Medicines Available Near You</h1>
+                <p class="hero-subtitle">Real-time stock from local pharmacies. Type a name or scan your prescription.</p>
+
+                <!-- Search Input with Autocomplete -->
+                <div class="search-box-wrapper">
+                    <div class="search-input-group">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-medicine-input" placeholder="Type medicine name (e.g. Paracetamol, Dolo 650, Azithromycin)..." autocomplete="off" />
+                    </div>
+
+                    <div class="search-controls">
+                        <select class="radius-select" id="search-radius-select" title="Search Radius">
+                            <option value="2">2 km</option>
+                            <option value="5" selected>5 km</option>
+                            <option value="10">10 km</option>
+                            <option value="25">25 km</option>
+                        </select>
+                        <button class="btn btn-primary" id="btn-search">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+
+                    <!-- Autocomplete Dropdown -->
+                    <div class="autocomplete-dropdown hidden" id="autocomplete-dropdown"></div>
+                </div>
+
+                <!-- Meta bar: Location & GPS -->
+                <div class="hero-meta-bar">
+                    <span id="location-status-badge">📍 Detecting location...</span>
+                    <button class="btn btn-secondary btn-sm" id="btn-use-location" style="background: rgba(255,255,255,0.2); color: #fff; border: none;">
+                        <i class="fas fa-crosshairs"></i> Use My GPS
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <div class="container">
+            <div class="main-grid">
+
+                <!-- ── Prescription OCR Scanner Panel ───────────────────── -->
+                <section class="card-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i class="fas fa-camera text-primary"></i>
+                            Scan Prescription Image
+                        </h2>
+                        <span class="badge-success" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">AI Extraction</span>
+                    </div>
+
+                    <!-- File Dropzone -->
+                    <div class="ocr-dropzone" id="ocr-drop-zone">
+                        <input type="file" id="ocr-file-input" accept="image/*" capture="environment" class="hidden" />
+                        
+                        <div id="ocr-upload-placeholder">
+                            <i class="fas fa-file-medical upload-icon"></i>
+                            <h4>Drag & Drop your prescription photo or Click to Browse</h4>
+                            <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.25rem;">Supports JPG, PNG, WEBP from phone camera or gallery</p>
+                        </div>
+
+                        <!-- Image Preview -->
+                        <div class="preview-wrapper hidden" id="ocr-preview-container">
+                            <img id="ocr-preview-img" class="ocr-preview-img" alt="Prescription preview" />
+                            <button class="btn-remove-preview" id="btn-remove-preview" title="Remove">&times;</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+                        <button class="btn btn-primary" id="btn-start-ocr" disabled>
+                            <i class="fas fa-magic"></i> Scan Prescription
+                        </button>
+                    </div>
+
+                    <!-- ── Interactive Prescription Tablet Menu (The Core Feature) ── -->
+                    <div class="prescription-menu hidden" id="ocr-prescription-menu">
+                        <div class="menu-header-box">
+                            <h3 class="menu-title"><i class="fas fa-clipboard-list text-primary"></i> Detected Prescription Medicines</h3>
+                            <p class="menu-subtitle">Tap any tablet below to instantly check nearby pharmacy stock & directions:</p>
+                        </div>
+
+                        <div class="prescription-medicine-list" id="ocr-medicine-list">
+                            <!-- Populated dynamically by ocr.js -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ── Pharmacy Availability Results Section ────────────── -->
+                <section class="card-panel hidden" id="search-results-section">
+                    <div class="panel-header">
+                        <h2 class="panel-title" id="results-header-title">
+                            <i class="fas fa-clinic-medical text-primary"></i>
+                            Nearby Pharmacies
+                        </h2>
+                    </div>
+
+                    <!-- Loading Spinner -->
+                    <div id="search-loader" class="text-center hidden" style="padding: 2rem;">
+                        <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                        <p style="margin-top: 0.5rem; color: var(--muted);">Checking live pharmacy inventories...</p>
+                    </div>
+
+                    <!-- Store Cards Grid -->
+                    <div class="results-grid" id="search-results-list">
+                        <!-- Populated dynamically by search.js -->
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         OWNER SECTION: Store & Inventory Dashboard
+         ══════════════════════════════════════════════════════════════════════ -->
+    <main id="owner-section" class="container hidden" style="padding-top: 2rem; padding-bottom: 3rem;">
+        <div class="card-panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title"><i class="fas fa-store-alt text-primary"></i> Pharmacy Owner Dashboard</h2>
+                    <p class="text-muted" style="font-size: 0.9rem;">Manage pharmacy stores, stock quantities, and live updates</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button class="btn btn-outline btn-sm" id="btn-open-add-store">
+                        <i class="fas fa-plus"></i> Register New Store
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="btn-open-add-stock">
+                        <i class="fas fa-capsules"></i> Add / Update Stock
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pharmacy Selector -->
+            <div class="form-group" style="max-width: 400px;">
+                <label for="owner-store-selector">Select Pharmacy Location:</label>
+                <select id="owner-store-selector" class="form-input"></select>
+            </div>
+
+            <!-- Inventory Table -->
+            <div class="owner-table-wrapper">
+                <table class="owner-table">
+                    <thead>
+                        <tr>
+                            <th>Medicine Name</th>
+                            <th>Stock Status</th>
+                            <th>Current Quantity</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="owner-inventory-tbody">
+                        <!-- Populated dynamically by store-owner.js -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="owner-inventory-empty" class="hidden"></div>
+        </div>
+    </main>
+
+    <!-- ── Turn-by-Turn Navigation Modal ─────────────────────────────────── -->
+    <div class="modal-overlay" id="map-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="map-modal-title">Directions to Pharmacy</h3>
+                <button class="btn-close-modal" id="btn-close-map-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; padding: 0.75rem; background: #f8fafc; border-radius: var(--radius-md);">
+                    <div><span class="text-muted" style="font-size: 0.8rem;">DISTANCE</span><br><strong id="route-distance">-- km</strong></div>
+                    <div><span class="text-muted" style="font-size: 0.8rem;">ESTIMATED TIME</span><br><strong id="route-duration">-- mins</strong></div>
+                </div>
+
+                <div id="route-steps-list"></div>
+
+                <div style="margin-top: 1.5rem;">
+                    <a id="btn-open-gmaps" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="width: 100%;">
+                        <i class="fas fa-external-link-alt"></i> Open Turn-by-Turn in Google Maps
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Authentication Modal (Login & Register) ───────────────────────── -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="auth-modal-title">Sign In to MediNear</h3>
+                <button class="btn-close-modal" id="btn-close-auth">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Login Tab Content -->
+                <div id="login-tab-content">
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-email">Email Address</label>
+                            <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" class="form-input" placeholder="••••••••" required />
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-login" style="width: 100%; margin-top: 0.5rem;">
+                            Sign In
+                        </button>
+                    </form>
+                    <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+                        Don't have an account? <a href="#" id="switch-to-register" style="color: var(--primary); font-weight: 600;">Register here</a>
+                    </p>
+                </div>
+
+                <!-- Register Tab Content -->
+                <div id="register-tab-content" class="hidden">
+                    <form id="register-form">
+                        <div class="form-group">
+                            <label for="reg-name">Full Name</label>
+                            <input type="text" id="reg-name" class="form-input" placeholder="Akhil Sai" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-email">Email Address</label>
+                            <input type="email" id="reg-email" class="form-input" placeholder="you@example.com" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-password">Password (min 6 characters)</label>
+                            <input type="password" id="reg-password" class="form-input" placeholder="••••••••" minlength="6" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-role">I am a:</label>
+                            <select id="reg-role" class="form-input">
+                                <option value="CUSTOMER">Customer / Patient</option>
+                                <option value="OWNER">Pharmacy Store Owner</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-register" style="width: 100%; margin-top: 0.5rem;">
+                            Create Account
+                        </button>
+                    </form>
+                    <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+                        Already registered? <a href="#" id="switch-to-login" style="color: var(--primary); font-weight: 600;">Sign in here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Add Store Modal (Owner) ───────────────────────────────────────── -->
+    <div class="modal-overlay" id="store-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Register Pharmacy Location</h3>
+                <button class="btn-close-modal" id="btn-close-store-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-add-store">
+                    <div class="form-group">
+                        <label for="new-store-name">Pharmacy Name</label>
+                        <input type="text" id="new-store-name" class="form-input" placeholder="Apollo Pharmacy - Banjara Hills" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="new-store-address">Street Address</label>
+                        <input type="text" id="new-store-address" class="form-input" placeholder="Road No. 12, Banjara Hills, Hyderabad" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="new-store-phone">Phone Number</label>
+                        <input type="tel" id="new-store-phone" class="form-input" placeholder="+91 9876543210" required />
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="new-store-lat">Latitude</label>
+                            <input type="number" step="any" id="new-store-lat" class="form-input" placeholder="17.385" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="new-store-lng">Longitude</label>
+                            <input type="number" step="any" id="new-store-lng" class="form-input" placeholder="78.486" required />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+                        Save Pharmacy Location
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Add/Update Stock Modal (Owner) ────────────────────────────────── -->
+    <div class="modal-overlay" id="stock-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Update Medicine Inventory</h3>
+                <button class="btn-close-modal" id="btn-close-stock-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-add-stock">
+                    <div class="form-group">
+                        <label for="new-stock-med-name">Medicine Name</label>
+                        <input type="text" id="new-stock-med-name" class="form-input" placeholder="PARACETAMOL 500MG" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="new-stock-qty">Quantity Available</label>
+                        <input type="number" min="0" id="new-stock-qty" class="form-input" placeholder="100" required />
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+                        Update Stock & Broadcast
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Floating AI Medical Assistant Chatbot ─────────────────────────── -->
+    <button class="ai-toggle-btn" id="btn-toggle-ai-chat" title="Talk to MediNear AI Assistant">
+        <i class="fas fa-robot"></i>
+    </button>
+
+    <div class="ai-chat-drawer" id="ai-chat-drawer">
+        <div class="ai-chat-header">
+            <div class="ai-header-info">
+                <i class="fas fa-stethoscope"></i>
+                <span>MediNear AI Assistant</span>
+            </div>
+            <button class="btn-close-modal" id="btn-close-ai-chat" style="color: #fff;">&times;</button>
+        </div>
+
+        <div class="ai-chat-body" id="ai-chat-messages">
+            <div class="ai-message ai-message-bot">
+                <div class="message-bubble">
+                    <p>Hello! I am your MediNear health assistant powered by Claude. Describe your symptoms or ask about any medicine, and I will recommend options and show nearby availability.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="ai-chat-footer">
+            <input type="text" class="ai-input" id="ai-chat-input" placeholder="e.g. fever, headache, cold..." />
+            <button class="btn btn-primary btn-sm" id="btn-ai-send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ── JavaScript Application Modules ───────────────────────────────── -->
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/ocr.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/ai-chat.js"></script>
+    <script src="js/store-owner.js"></script>
+
+</body>
+</html>
