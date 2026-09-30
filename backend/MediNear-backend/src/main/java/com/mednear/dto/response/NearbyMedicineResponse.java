@@ -5,9 +5,10 @@ import java.time.LocalDateTime;
 
 /**
  * One search result row for GET /api/medicines/nearby.
+ *
  * Built from NearbyStoreProjection — no casting, no Object[].
  *
- * stockStatus derived server-side so the frontend needs zero business logic:
+ * stockStatus:
  *   HIGH     → qty >= 50
  *   LOW      → qty 10-49
  *   CRITICAL → qty 1-9
@@ -20,6 +21,7 @@ public class NearbyMedicineResponse {
     private String        phone;
     private Double        latitude;
     private Double        longitude;
+    private String        imageUrl;
     private Double        distanceKm;
     private Integer       quantity;
     private String        stockStatus;
@@ -28,19 +30,26 @@ public class NearbyMedicineResponse {
     private LocalDateTime lastUpdated;
 
     public static NearbyMedicineResponse from(NearbyStoreProjection p) {
+
         NearbyMedicineResponse r = new NearbyMedicineResponse();
+
         r.storeId      = p.getStoreId();
         r.storeName    = p.getStoreName();
         r.address      = p.getAddress();
         r.phone        = p.getPhone();
         r.latitude     = p.getLatitude();
         r.longitude    = p.getLongitude();
+
+        // Pharmacy image from Supabase Storage
+        r.imageUrl     = p.getImageUrl();
+
         r.distanceKm   = p.getDistanceKm();
         r.quantity     = p.getQuantity();
         r.stockStatus  = resolveStockStatus(p.getQuantity());
         r.medicineId   = p.getMedicineId();
         r.medicineName = p.getMedicineName();
         r.lastUpdated  = p.getLastUpdated();
+
         return r;
     }
 
@@ -50,16 +59,55 @@ public class NearbyMedicineResponse {
         return "CRITICAL";
     }
 
-    public Long          getStoreId()      { return storeId; }
-    public String        getStoreName()    { return storeName; }
-    public String        getAddress()      { return address; }
-    public String        getPhone()        { return phone; }
-    public Double        getLatitude()     { return latitude; }
-    public Double        getLongitude()    { return longitude; }
-    public Double        getDistanceKm()   { return distanceKm; }
-    public Integer       getQuantity()     { return quantity; }
-    public String        getStockStatus()  { return stockStatus; }
-    public Long          getMedicineId()   { return medicineId; }
-    public String        getMedicineName() { return medicineName; }
-    public LocalDateTime getLastUpdated()  { return lastUpdated; }
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    public String getStoreName() {
+        return storeName;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public Double getDistanceKm() {
+        return distanceKm;
+    }
+
+    public Integer getQuantity() {
+        return quantity;
+    }
+
+    public String getStockStatus() {
+        return stockStatus;
+    }
+
+    public Long getMedicineId() {
+        return medicineId;
+    }
+
+    public String getMedicineName() {
+        return medicineName;
+    }
+
+    public LocalDateTime getLastUpdated() {
+        return lastUpdated;
+    }
 }
