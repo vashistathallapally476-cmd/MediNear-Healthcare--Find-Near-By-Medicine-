@@ -12,19 +12,16 @@ import java.time.LocalDateTime;
 /**
  * Store (pharmacy) entity.
  *
- * Indexes:
- *   idx_stores_owner     – filters by owner on /api/stores/my
- *   idx_stores_lat_lng   – composite; used in Haversine bounding-box pre-filter
- *   idx_stores_active    – WHERE is_active = true on every search
+ * Stores pharmacy details and the optional pharmacy image URL.
  */
 @Entity
 @Table(
     name = "stores",
     indexes = {
-        @Index(name = "idx_stores_owner",   columnList = "owner_id"),
-        @Index(name = "idx_stores_lat",     columnList = "latitude"),
-        @Index(name = "idx_stores_lng",     columnList = "longitude"),
-        @Index(name = "idx_stores_active",  columnList = "is_active")
+        @Index(name = "idx_stores_owner", columnList = "owner_id"),
+        @Index(name = "idx_stores_lat", columnList = "latitude"),
+        @Index(name = "idx_stores_lng", columnList = "longitude"),
+        @Index(name = "idx_stores_active", columnList = "is_active")
     }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -64,37 +61,108 @@ public class Store {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    /*
+     * Public URL of the pharmacy image stored in Supabase Storage.
+     */
+    @Column(name = "image_url", length = 1000)
+    private String imageUrl;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    public Store() {}
-
-    public Store(String storeName, User owner, String address,
-                 Double latitude, Double longitude, String phone) {
-        this.storeName = storeName;
-        this.owner     = owner;
-        this.address   = address;
-        this.latitude  = latitude;
-        this.longitude = longitude;
-        this.phone     = phone;
+    public Store() {
     }
 
-    public Long          getStoreId()            { return storeId; }
-    public void          setStoreId(Long id)     { this.storeId = id; }
-    public String        getStoreName()          { return storeName; }
-    public void          setStoreName(String v)  { this.storeName = v; }
-    public User          getOwner()              { return owner; }
-    public void          setOwner(User v)        { this.owner = v; }
-    public String        getAddress()            { return address; }
-    public void          setAddress(String v)    { this.address = v; }
-    public Double        getLatitude()           { return latitude; }
-    public void          setLatitude(Double v)   { this.latitude = v; }
-    public Double        getLongitude()          { return longitude; }
-    public void          setLongitude(Double v)  { this.longitude = v; }
-    public String        getPhone()              { return phone; }
-    public void          setPhone(String v)      { this.phone = v; }
-    public boolean       isActive()              { return active; }
-    public void          setActive(boolean v)    { this.active = v; }
-    public LocalDateTime getCreatedAt()          { return createdAt; }
+    public Store(
+            String storeName,
+            User owner,
+            String address,
+            Double latitude,
+            Double longitude,
+            String phone
+    ) {
+        this.storeName = storeName;
+        this.owner = owner;
+        this.address = address;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.phone = phone;
+    }
+
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    public void setStoreId(Long id) {
+        this.storeId = id;
+    }
+
+    public String getStoreName() {
+        return storeName;
+    }
+
+    public void setStoreName(String v) {
+        this.storeName = v;
+    }
+
+    public User getOwner() {
+        return owner;
+    }
+
+    public void setOwner(User v) {
+        this.owner = v;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String v) {
+        this.address = v;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double v) {
+        this.latitude = v;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double v) {
+        this.longitude = v;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String v) {
+        this.phone = v;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean v) {
+        this.active = v;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }
