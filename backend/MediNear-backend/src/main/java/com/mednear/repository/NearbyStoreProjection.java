@@ -12,15 +12,20 @@ import java.time.LocalDateTime;
  *  • No casting, no Object[] unpacking — ever.
  */
 public interface NearbyStoreProjection {
+
     Long          getStoreId();
     String        getStoreName();
     String        getAddress();
     String        getPhone();
     Double        getLatitude();
     Double        getLongitude();
+
+    // Pharmacy image URL stored in Supabase Storage
+    String        getImageUrl();
+
     Integer       getQuantity();
     LocalDateTime getLastUpdated();
     Long          getMedicineId();
     String        getMedicineName();
-    Double        getDistanceKm();     // aliased AS distanceKm in SQL
+    Double        getDistanceKm();
 }
